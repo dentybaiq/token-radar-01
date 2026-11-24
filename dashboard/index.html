@@ -3,13 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Token Radar — pre-token protocols ranked by implied value</title>
+<title>Launch Radar — pre-token protocols, valued from their own record</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<a class="skip" href="#board">Skip to the board</a>
-<main id="board" tabindex="-1" aria-busy="true"></main>
+<main>
+<header class="head">
+  <div>
+    <h1>Launch Radar</h1>
+    <p class="sub">pre-token protocols, valued from their own record</p>
+  </div>
+  <div class="meta">
+    <div>Snapshot <b id="m-asof">—</b></div>
+    <div>Model <b id="m-version">—</b></div>
+    <div>Source <b>DeFiLlama protocols (sealed)</b></div>
+  </div>
+</header>
+
+<section class="kpis" id="kpis" aria-label="Headline out-of-sample stats"></section>
+<p class="formula" id="formula"></p>
+
+<section class="panel" id="accounting">
+  <h2>Protocol accounting</h2>
+  <div class="stackbar" id="stackbar"></div>
+  <div class="groups" id="groups"></div>
+  <ul class="checks" id="checks"></ul>
+</section>
+
+<section class="panel" id="evidence">
+  <h2>Out-of-sample evidence</h2>
+  <div class="evgrid">
+    <div><h3>Value model terms</h3><div id="ev-value"></div></div>
+    <div><h3>Token odds terms</h3><div id="ev-odds"></div></div>
+    <div><h3>Printed range honesty</h3><div id="ev-range"></div></div>
+  </div>
+  <p class="note" id="ev-note"></p>
+</section>
+
+<section class="panel controls" id="controls">
+  <h2>Controls</h2>
+  <div class="tabs" id="tab-verdict" role="tablist" aria-label="Verdict filter"></div>
+  <div class="tabs" id="tab-tier" role="tablist" aria-label="Tier filter"></div>
+  <div class="ctl">
+    <label>Deposit <select id="c-deposit"></select></label>
+    <label>Drop share <input type="range" id="c-share" min="1" max="25" step="1" value="10"> <b id="c-share-v">10%</b></label>
+    <label>Horizon <input type="range" id="c-horizon" min="4" max="104" step="1" value="26"> <b id="c-horizon-v">26w</b></label>
+    <label>Search <input type="search" id="c-search" placeholder="protocol name or slug"></label>
+    <label>Category <select id="c-category"></select></label>
+    <label>Chain <select id="c-chain"></select></label>
+    <button id="c-reset" type="button">Reset</button>
+    <button id="c-csv" type="button">CSV</button>
+    <button id="c-json" type="button">JSON</button>
+  </div>
+  <p class="count" id="rowcount"></p>
+</section>
+
+<section class="panel">
+  <h2>Ranked board <span class="muted" id="board-sub"></span></h2>
+  <div class="tblwrap">
+    <table id="board">
+      <thead><tr>
+        <th>#</th><th>Protocol</th><th>TVL</th><th>7D</th><th>No-token age</th>
+        <th>Token odds</th><th>If it launches</th><th>Implied value</th>
+        <th>P25–P75 range</th><th>Verdict</th><th>Net / hour</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p class="empty" id="empty" hidden></p>
+</section>
+
+<footer>
+  <p>Estimates from a sealed snapshot, not financial advice. Token launches are uncertain;
+  the ranges are wide for a reason. No live data is mixed in: every number comes from the
+  snapshot dated above or from the model fitted on it. <span id="live-note"></span></p>
+</footer>
+</main>
 <script src="../data.js"></script>
+<script src="fit.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

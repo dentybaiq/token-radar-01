@@ -1,20 +1,38 @@
-// Token Radar (radar-2): the entrypoint.
+// Launch Radar (radar-3): the entrypoint.
 //
 // Reads the sealed snapshot (default /input/snapshot.json, or --input <file|dir> when run
-// locally), scores every rankable pre-token protocol with the model in lib/model.ts, and writes
-// the ranked board, the dashboard's data, the dashboard, the screenshots and the dossier:
+// locally), runs the both-tests term search, scores every rankable pre-token protocol with
+// the surviving model, and writes the ranked board, the dashboard's data, the dashboard,
+// the screenshots and the dossier:
 //
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input <snapshot.json|directory>
 //
 // The program runs twice in grading and both runs must write identical bytes: nothing here
 // reads the clock, the environment or a random source; every date comes from the snapshot's
 // own as_of. Node 22, standard library only, no network.
+//
+// The model lives in one plain-JavaScript file, dashboard/fit.js, so the exact same code
+// runs here and in the browser (where it refits the surviving model live from the embedded
+// snapshot). The term search lives in lib/termsearch.js and runs only at build time; the
+// browser never runs it. lib/model.ts from the previous version is gone on purpose: keeping
+// a second copy of the model would let the two drift.
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
+import { createRequire } from 'node:module';
 import { buildDossier } from './vendor/makefun-board.ts';
+
+const require = createRequire(import.meta.url);
+const fit = require('./dashboard/fit.js') as {
+  boardIssue: (board: unknown, snapshot: unknown) => string | null;
+  buildRadar: (snapshot: unknown, search: unknown, settings?: unknown) => { board: unknown[]; radar: Record<string, unknown> };
+  dataScript: (radar: unknown) => string;
+  parseSnapshot: (text: string) => { protocols: unknown[]; watchlist: unknown[] };
+};
+const termsearch = require('./lib/termsearch.js') as {
+  searchTerms: (snapshot: unknown) => Record<string, unknown>;
+};
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 
@@ -42,9 +60,10 @@ if (!existsSync(inputFile)) {
 }
 const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
-const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
-const { board, radar } = buildRadar(snapshot);
-const issue = boardIssue(board, snapshot);
+const snapshot = fit.parseSnapshot(readFileSync(inputFile, 'utf8'));
+const search = termsearch.searchTerms(snapshot);
+const { board, radar } = fit.buildRadar(snapshot, search);
+const issue = fit.boardIssue(board, snapshot);
 if (issue !== null) {
   process.stderr.write(`token radar: the model wrote a board the gate refuses: ${issue}\n`);
   process.exit(1);
@@ -52,7 +71,7 @@ if (issue !== null) {
 
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
-writeFileSync(join(out, 'data.js'), dataScript(radar));
+writeFileSync(join(out, 'data.js'), fit.dataScript(radar));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */
 function copyFiles(from: string, to: string): string[] {
@@ -88,9 +107,13 @@ writeFileSync(
   buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: DASHBOARD_CAPS }),
 );
 
+const counts = radar.counts as { board: number; farm: number; marginal: number; pricedComps: number; oddsRows: number };
 process.stdout.write(
-  `token radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ` +
-    `${radar.pre_token_total} pre-token, ${board.length} rows scored (${radar.early_size} below the watchlist)\n` +
-    `token radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (${dashFiles.length} files), ` +
+  `launch radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ` +
+    `${counts.board} rows scored (${counts.farm} FARM, ${counts.marginal} MARGINAL at the default settings)\n` +
+    `launch radar: value model keeps [${(search.valueKept as string[]).join(', ') || 'none'}], ` +
+    `odds model keeps [${(search.oddsKept as string[]).join(', ') || 'none'}]; ` +
+    `${counts.pricedComps} priced comps, ${counts.oddsRows} dated protocols\n` +
+    `launch radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (${dashFiles.length} files), ` +
     `${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
 );
